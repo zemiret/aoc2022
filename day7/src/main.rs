@@ -1,5 +1,5 @@
 use core::panic;
-use std::{cell::RefCell, collections::HashMap, fmt::Display, fs, rc::Rc, borrow::Borrow};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, fs, rc::Rc};
 
 #[derive(Debug, Clone)]
 enum NodeType {
@@ -24,14 +24,24 @@ impl Display for NodeType {
 struct Node {
     size: i32,
     node_type: NodeType,
+    name: String,
 
     children: HashMap<String, Rc<RefCell<Node>>>,
     parent: Option<Rc<RefCell<Node>>>,
 }
 
+impl Node {
+    fn print_fs(&self, spacer: String) {
+        println!("{}{}", spacer, self);
+        self.children
+            .values()
+            .for_each(|n| n.as_ref().borrow().print_fs(spacer.clone() + "    "));
+    }
+}
+
 impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}: {})", self.node_type, self.size)
+        write!(f, "{}({}:{})", self.name, self.node_type, self.size)
     }
 }
 
@@ -74,6 +84,7 @@ fn main() {
         children: HashMap::new(),
         node_type: NodeType::Dir,
         parent: None,
+        name: "/".to_string(),
     }));
     let mut cur_node: Rc<RefCell<Node>> = Rc::clone(&tree);
 
@@ -88,21 +99,31 @@ fn main() {
     while i < lineslen {
         match parse_command(&lines[i]) {
             Command::Ls => {
-                let line = &lines[i];
-                let mut total_size= 0;
+                i += 1;
+                let mut total_size = 0;
+                let mut line = &lines[i];
                 while !is_command(line) && i < lineslen {
                     let (nt, si, na) = parse_single_entry(line);
-                    cur_node.borrow_mut().children.insert(
-                        na,
-                        Rc::new(RefCell::new(Node {
-                            size: si,
-                            children: HashMap::new(),
-                            node_type: nt,
-                            parent: Some(Rc::clone(&cur_node)),
-                        })),
-                    );
+
+                    let n = Node {
+                        size: si,
+                        children: HashMap::new(),
+                        name: na.to_string(),
+                        node_type: nt,
+                        parent: Some(Rc::clone(&cur_node)),
+                    };
+
+                    cur_node
+                        .borrow_mut()
+                        .children
+                        .insert(na, Rc::new(RefCell::new(n)));
+
                     total_size += si;
                     i += 1;
+                    if i == lineslen {
+                        break;
+                    }
+                    line = &lines[i];
                 }
                 cur_node.borrow_mut().size = total_size;
             }
@@ -113,19 +134,20 @@ fn main() {
                         None => panic!("cd out of tree"),
                     };
                     cur_node = new_cur;
+                    i += 1;
                 }
                 _ => {
                     let new_cur = match cur_node.as_ref().borrow().children.get(dirname) {
                         Some(node) => Rc::clone(node),
-                        None => panic!("no child with that name"),
+                        None => panic!("no child with name: {}", dirname),
                     };
                     cur_node = new_cur;
+                    i += 1;
                 }
             },
         }
-
-        i += 1;
     }
 
-    println!("{}", tree.as_ref().borrow());
+    tree.as_ref().borrow().print_fs("".to_string());
+    println!();
 }

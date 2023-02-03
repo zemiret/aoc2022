@@ -113,13 +113,42 @@ fn dirsum(node: Rc<RefCell<Node>>) -> i32 {
     return total_size
 }
 
+fn finddel(node: Rc<RefCell<Node>>, size_needed: i32) -> i32 {
+    let nodeb = node.as_ref().borrow();
+    match nodeb.node_type {
+        NodeType::Dir => {
+            let mut thissize = if nodeb.size >= size_needed {
+                nodeb.size
+            } else {
+                100000000
+            };
+
+            nodeb.children.values().for_each(|cn| {
+                let c_size = finddel(cn.to_owned(), size_needed);
+                if c_size < thissize && c_size >= size_needed {
+                    thissize = c_size;
+                } 
+            });
+            return thissize;
+        }
+        NodeType::File => {
+            return 100000000;
+        }
+    };
+}
+
 fn part1(tree: Rc<RefCell<Node>>) {
     println!();
     println!("{}", dirsum(tree))
 }
 
 fn part2(tree: Rc<RefCell<Node>>) {
+    let total_space = 70000000;
+    let unused_space = total_space - tree.as_ref().borrow().size;
+    let space_needed = 30000000 - unused_space;
 
+    println!("Space needed: {}", space_needed);
+    println!("{}", finddel(tree, space_needed));
 }
 
 /**

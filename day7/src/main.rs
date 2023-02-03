@@ -35,7 +35,23 @@ impl Node {
         println!("{}{}", spacer, self);
         self.children
             .values()
-            .for_each(|n| n.as_ref().borrow().print_fs(spacer.clone() + "    "));
+            .for_each(|n| n.as_ref().borrow().print_fs(format!("  {}", spacer)));
+    }
+
+    fn fill_dirsizes(&mut self) -> i32 {
+        match self.node_type {
+            NodeType::File => {
+                self.size
+            }
+            NodeType::Dir => {
+                let mut total_size = 0;
+                self.children.values().for_each(|cn| {
+                    total_size += cn.as_ref().borrow_mut().fill_dirsizes();
+                });
+                self.size = total_size;
+                total_size
+            }
+        }
     }
 }
 
@@ -74,13 +90,45 @@ fn parse_single_entry(line: &str) -> (NodeType, i32, String) {
         ),
     }
 }
+
+fn dirsum(node: Rc<RefCell<Node>>) -> i32 {
+    let nodeb = node.as_ref().borrow();
+    let mut total_size = match nodeb.node_type {
+        NodeType::Dir => {
+            if nodeb.size < 100000 {
+                nodeb.size
+            } else {
+               0 
+            }
+        }
+        NodeType::File => {
+           0 
+        }
+    };
+
+    nodeb.children.values().for_each(|cn| {
+        total_size += dirsum(cn.to_owned());
+    });
+
+    return total_size
+}
+
+fn part1(tree: Rc<RefCell<Node>>) {
+    println!();
+    println!("{}", dirsum(tree))
+}
+
+fn part2(tree: Rc<RefCell<Node>>) {
+
+}
+
 /**
  * 1. "execute commands" to buld the tree and calculate the sizes
  * 2. Do the tree walk to get the nodes - "my size is size of my files if I am a dir or my size if I am a file"
  */
 fn main() {
     let tree = Rc::new(RefCell::new(Node {
-        size: -1,
+        size: 0,
         children: HashMap::new(),
         node_type: NodeType::Dir,
         parent: None,
@@ -100,7 +148,6 @@ fn main() {
         match parse_command(&lines[i]) {
             Command::Ls => {
                 i += 1;
-                let mut total_size = 0;
                 let mut line = &lines[i];
                 while !is_command(line) && i < lineslen {
                     let (nt, si, na) = parse_single_entry(line);
@@ -118,14 +165,12 @@ fn main() {
                         .children
                         .insert(na, Rc::new(RefCell::new(n)));
 
-                    total_size += si;
                     i += 1;
                     if i == lineslen {
                         break;
                     }
                     line = &lines[i];
                 }
-                cur_node.borrow_mut().size = total_size;
             }
             Command::Cd(dirname) => match dirname {
                 ".." => {
@@ -133,6 +178,7 @@ fn main() {
                         Some(node) => Rc::clone(node),
                         None => panic!("cd out of tree"),
                     };
+
                     cur_node = new_cur;
                     i += 1;
                 }
@@ -148,6 +194,8 @@ fn main() {
         }
     }
 
-    tree.as_ref().borrow().print_fs("".to_string());
-    println!();
+    tree.as_ref().borrow_mut().fill_dirsizes();
+    tree.as_ref().borrow().print_fs(" - ".to_string());
+
+    part2(tree);
 }

@@ -144,7 +144,7 @@ fn part1(tree: Rc<RefCell<Node>>) {
 
 fn part2(tree: Rc<RefCell<Node>>) {
     let total_space = 70000000;
-    let unused_space = total_space - tree.as_ref().borrow().size;
+    let unused_space = total_space - tree.borrow().size;
     let space_needed = 30000000 - unused_space;
 
     println!("Space needed: {}", space_needed);

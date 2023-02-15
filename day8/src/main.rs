@@ -175,7 +175,6 @@ fn part1() {
         println!();
     }
     println!();
-
     println!("{}", total_visible);
 }
 
@@ -191,6 +190,87 @@ fn part1() {
  * Repeat for all directions. 
  */
 fn part2() {
+    let tree_map: Vec<Vec<u32>> = include_str!("../testinput")
+        .lines()
+        .map(|x| {
+            x.chars()
+                .map(|c| c.to_digit(10).expect("NaN"))
+                .collect::<Vec<u32>>()
+        })
+        .collect::<Vec<Vec<u32>>>();
+
+    let mut score_map: Vec<Vec<HighestSeenYet>> = tree_map
+        .iter()
+        .map(|row| {
+            vec![
+                HighestSeenYet {
+                    top: 0,
+                    bot: 0,
+                    right: 0,
+                    left: 0
+                };
+                row.len()
+            ]
+        })
+        .collect();
+
+    let row_size = tree_map.len();
+    
+    // left side scores
+    for i in 0..row_size {
+        score_map[i][0].left = 0;
+        for j in 1..row_size {
+            if tree_map[i][j] <= tree_map[i][j-1] {
+                score_map[i][j].left = 1;
+                continue
+            }
+
+            let mut k = j-1;
+            let mut score = 0;
+            while k > 0 {
+                // TODO: For now this is not working at all and there is an infinite loop here.
+
+                for i in 0..row_size {
+                    for j in 0..row_size {
+                        print!("{}", score_map[i][j].left);
+                    }
+                    println!();
+                }
+                println!();
+
+
+                if tree_map[i][k] >= tree_map[i][j] {
+                    break;
+                }
+
+                score += score_map[i][k].left;
+                k -= score_map[i][k].left as usize; 
+            }
+            score_map[i][j].left = score;
+        }
+    }
+
+
+    println!("Input:");
+    for i in 0..row_size {
+        for j in 0..row_size {
+            print!("{}", tree_map[i][j]);
+        }
+        println!();
+    }
+    println!();
+
+    println!("From left:");
+    for i in 0..row_size {
+        for j in 0..row_size {
+            print!("{}", score_map[i][j].left);
+        }
+        println!();
+    }
+    println!();
+}
+
+fn part2_brute() {
     let tree_map: Vec<Vec<u32>> = include_str!("../input")
         .lines()
         .map(|x| {
@@ -200,7 +280,48 @@ fn part2() {
         })
         .collect::<Vec<Vec<u32>>>();
 
+    let forest_size = tree_map.len();
+    let mut max_score = -1;
+    for i in 1..forest_size-1 {
+        for j in 1..forest_size-1 {
+            let (mut left, mut right, mut top, mut bot) = (0, 0, 0, 0);
+            for k in (0..j).rev() { //left 
+                left += 1;
+                if tree_map[i][k] >= tree_map[i][j] {
+                    break;
+                }
+            }
+            for k in (0..i).rev() { //top
+                top += 1;
+                if tree_map[k][j] >= tree_map[i][j] {
+                    break;
+                }
+            }
+            for k in j+1..forest_size { //right
+                right += 1;
+                if tree_map[i][k] >= tree_map[i][j] {
+                    break;
+                }
+            }
+            for k in i+1..forest_size { //bot
+                bot += 1;
+                if tree_map[k][j] >= tree_map[i][j] {
+                    break;
+                }
+            }
+
+            let score = left * right * top * bot;
+            // println!("score[{}][{}] = ({}, {}, {}, {})", i, j, left, top, right, bot);
+            if score > max_score {
+                max_score = score;
+            }
+        }
+    }
+
+    println!("{}", max_score);
+
 }
 
 fn main() {
+    part2_brute();
 }
